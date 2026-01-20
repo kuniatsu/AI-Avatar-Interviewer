@@ -5,6 +5,7 @@ import { AvatarScene } from '../components/AvatarScene';
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [avatarLoaded, setAvatarLoaded] = useState(false);
+  const modelUrl = process.env.NEXT_PUBLIC_MODEL_URL;
 
   const handleAvatarLoaded = () => {
     setAvatarLoaded(true);
@@ -21,7 +22,10 @@ export default function Home() {
       </Head>
 
       <div style={{ width: '100vw', height: '100vh', display: 'flex' }}>
-        <AvatarScene onAvatarLoaded={handleAvatarLoaded} />
+        <AvatarScene
+          onAvatarLoaded={handleAvatarLoaded}
+          modelUrl={modelUrl}
+        />
       </div>
 
       {isLoading && (

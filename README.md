@@ -143,20 +143,56 @@ ai-avatar-interviewer/
    - 会話ロジックの実装
    - ヒアリング項目管理
 
-## 📦 VRM ファイル の準備（Phase 2 以降）
+## 📦 VRM/glTF モデル の設定（Phase 2）
 
-1. **フリーの VRM モデルを入手**
-   - [VroidHub](https://hub.vroid.com/) など
+### モデルの準備方法
 
-2. **public/ フォルダに配置**
-   ```
-   public/models/avatar.vrm
-   ```
+#### 1. フリーのモデルを入手
+* **VroidHub**: https://hub.vroid.com/ (VRM 形式)
+* **Sketchfab**: https://sketchfab.com/ (glTF/glb 形式)
+* **Poly Haven**: https://polyhaven.com/models (glTF/glb 形式)
 
-3. **AvatarScene.tsx で読み込み**
-   ```typescript
-   const modelUrl = '/models/avatar.vrm';
-   ```
+#### 2. ローカルファイルとして使用する場合
+
+**ステップ 1**: モデルファイルを配置
+```bash
+# public/models/ フォルダにコピー
+cp your-avatar.vrm public/models/avatar.vrm
+```
+
+**ステップ 2**: 環境変数を設定
+```bash
+# .env.local を作成（git には含めない）
+echo 'NEXT_PUBLIC_MODEL_URL=/models/avatar.vrm' > .env.local
+```
+
+**ステップ 3**: 開発サーバーを起動
+```bash
+npm run dev
+```
+
+#### 3. リモート URL から読み込む場合
+```bash
+echo 'NEXT_PUBLIC_MODEL_URL=https://example.com/avatar.glb' > .env.local
+npm run dev
+```
+
+### テスト用サンプルモデル
+
+以下のコマンドで Three.js のサンプルモデルをダウンロードできます：
+
+```bash
+# Duck.glb をダウンロード（テスト用）
+curl -o public/models/test.glb \
+  https://threejs.org/examples/models/gltf/Duck/glTF/Duck.gltf
+
+# 設定
+echo 'NEXT_PUBLIC_MODEL_URL=/models/test.glb' > .env.local
+```
+
+### 対応形式
+* VRM (.vrm) - 3D キャラクター用フォーマット
+* glTF/glb (.glb, .gltf) - 汎用 3D フォーマット
 
 ## 🔧 開発時のトラブルシューティング
 
