@@ -57,12 +57,26 @@ Webブラウザ上で動作する、3Dアバターによる対話型ヒアリン
 # 1. 依存パッケージのインストール
 npm install
 
-# 2. 開発サーバーの起動
+# 2. 環境変数を設定
+# .env.local ファイルを作成
+echo 'CLAUDE_API_KEY=your-api-key-here' > .env.local
+
+# オプション: VRM モデル URL を指定
+echo 'NEXT_PUBLIC_MODEL_URL=/models/avatar.vrm' >> .env.local
+
+# 3. 開発サーバーの起動
 npm run dev
 
-# 3. ブラウザで開く
+# 4. ブラウザで開く
 # http://localhost:3000 を開く
 ```
+
+#### 環境変数の説明
+
+| 変数名 | 必須 | 説明 |
+|---|---|---|
+| `CLAUDE_API_KEY` | ✅ | Anthropic Claude API キー |
+| `NEXT_PUBLIC_MODEL_URL` | ❌ | VRM/glTF モデルの URL (ない場合は立方体表示) |
 
 ### ビルド・デプロイ
 
@@ -92,7 +106,9 @@ ai-avatar-interviewer/
 └── package.json                # 依存パッケージ管理
 ```
 
-## 🛠 実装済みの技術スタック（Phase 1）
+## 🛠 実装済みの技術スタック
+
+### Phase 1 & 2 共通
 
 | 機能 | ライブラリ | バージョン |
 |------|-----------|----------|
@@ -101,8 +117,63 @@ ai-avatar-interviewer/
 | 3D レンダリング | Three.js | ^0.182.0 |
 | React 向け 3D | @react-three/fiber | ^9.5.0 |
 | 3D ユーティリティ | @react-three/drei | ^10.7.7 |
-| VRM 対応予定 | @pixiv/three-vrm | ^3.4.5 |
+| VRM サポート | @pixiv/three-vrm | ^3.4.5 |
+| glTF ローダー | three-stdlib | ^2.36.1 |
 | 言語 | TypeScript | ^5.9.3 |
+
+### Phase 2 で追加
+
+| 機能 | ライブラリ/API | 説明 |
+|------|---|---|
+| 音声入力 | Web Audio API | microphone からの音量解析 |
+| 音声出力 | Web Speech API | テキスト音声合成 |
+| 音声認識 | Web Speech API | 音声を テキストに変換 |
+| Claude API | Anthropic | 会話・テキスト生成 |
+
+## 📖 使用方法
+
+### インタビューの実行
+
+1. **ブラウザを開く**: http://localhost:3000
+
+2. **アバターが表示される**
+   - 3D シーンにプレースホルダーまたは VRM モデルが表示
+   - マウスでカメラを操作可能
+
+3. **インタビュー開始**
+   - 「インタビュー開始」ボタンをクリック
+   - 🎤 ボタンでマイクをオン
+
+4. **音声で応答**
+   - マイクが起動してリッスンモードに
+   - 日本語で質問に答える
+   - 音量バーで入力レベルを確認
+
+5. **AI 応答**
+   - Claude API がテキストを生成
+   - Web Speech API で音声再生
+   - アバターがリップシンク表示
+
+6. **完了**
+   - 全ての項目を回答後に完了画面表示
+   - 収集したデータを JSON で表示
+
+### ヒアリング項目のカスタマイズ
+
+`pages/index.tsx` の `SAMPLE_INTERVIEW_ITEMS` を編集：
+
+```typescript
+const SAMPLE_INTERVIEW_ITEMS: InterviewItem[] = [
+  {
+    id: '1',
+    key: 'your_key',
+    question: '質問文',
+    description: '説明',
+    required: true, // 必須かどうか
+  },
+  // 追加...
+];
+```
 
 ## 📝 Phase 1 実装内容
 
@@ -128,20 +199,60 @@ ai-avatar-interviewer/
 - **マウス右ボタンドラッグ**: カメラパン
 - **マウスホイール**: ズームイン/アウト
 
-## 🎯 Phase 2 実装予定
+## 📝 Phase 2 実装内容 ✅
 
-1. **VRM モデル統合**
-   - VRM ファイルの読み込み
-   - Three.js への統合
-   - ボーン・スケルトン制御
+### ✅ 完了項目
+
+1. **VRM/glTF モデル統合**
+   - VRMLoader コンポーネント実装
+   - useGLTF フックでのモデル読み込み
+   - アニメーション再生対応
 
 2. **音声・リップシンク基盤**
-   - Web Audio API の統合
-   - 音量レベル解析
+   - Web Audio API による microphone 入力
+   - リアルタイム音量解析
+   - LipSyncManager でのモーフターゲット制御
+   - 音韻ベースの口の動き制御
 
 3. **Anthropic Claude API 連携**
-   - 会話ロジックの実装
-   - ヒアリング項目管理
+   - Claude API クライアント実装
+   - 自然な会話ロジック
+   - ヒアリング項目管理システム
+
+4. **インタビュー UI システム**
+   - リアルタイム音声認識 (Web Speech API)
+   - 会話メッセージ表示
+   - 音量レベル可視化
+   - 進捗バー表示
+
+### 主なコンポーネント
+
+| コンポーネント | ファイル | 説明 |
+|---|---|---|
+| Audio Manager | `lib/audioAnalyzer.ts` | 音声入出力・音量解析 |
+| Lip-sync Manager | `lib/lipSyncManager.ts` | リップシンク制御 |
+| Claude Client | `lib/claudeApiClient.ts` | API 連携・会話管理 |
+| Interview Manager | `lib/interviewManager.ts` | ヒアリングフロー管理 |
+| Interview UI | `components/InterviewUI.tsx` | UI コンポーネント |
+
+## 🎯 Phase 3 実装予定
+
+1. **感情・モーション制御**
+   - テキスト感情分析
+   - 表情アニメーション制御
+   - ボディモーション同期
+
+2. **高度なリップシンク**
+   - 周波数解析による詳細なリップシンク
+   - より多くの音韻パターン対応
+
+3. **ユーザーカスタマイズ**
+   - ヒアリング項目のカスタマイズ機能
+   - 回答パターンの学習
+
+4. **分析・ロギング**
+   - インタビュー統計
+   - 会話データの保存
 
 ## 📦 VRM/glTF モデル の設定（Phase 2）
 
