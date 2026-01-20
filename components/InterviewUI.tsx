@@ -3,6 +3,10 @@ import { getAudioAnalyzer } from '../lib/audioAnalyzer';
 import { getLipSyncManager } from '../lib/lipSyncManager';
 import { getClaudeClient, type InterviewItem } from '../lib/claudeApiClient';
 import { getInterviewManager } from '../lib/interviewManager';
+import { getEmotionAnalyzer } from '../lib/emotionAnalyzer';
+import { getExpressionController } from '../lib/expressionController';
+import { getMotionController } from '../lib/motionController';
+import { getDataStorage, type InterviewRecord } from '../lib/dataStorage';
 
 interface InterviewUIProps {
   interviewItems: InterviewItem[];
@@ -28,6 +32,12 @@ export const InterviewUI: React.FC<InterviewUIProps> = ({
   const lipSyncManagerRef = useRef(getLipSyncManager());
   const claudeClientRef = useRef(getClaudeClient());
   const interviewManagerRef = useRef(getInterviewManager());
+  const emotionAnalyzerRef = useRef(getEmotionAnalyzer());
+  const expressionControllerRef = useRef(getExpressionController());
+  const motionControllerRef = useRef(getMotionController());
+  const dataStorageRef = useRef(getDataStorage());
+  const startTimeRef = useRef<number>(Date.now());
+  const emotionsRef = useRef<Array<{ timestamp: number; type: string; score: number }>>([]);
   const recognitionRef = useRef<any>(null);
 
   // 初期化
@@ -45,6 +55,21 @@ export const InterviewUI: React.FC<InterviewUIProps> = ({
         interviewManagerRef.current.onStateChanged((state) => {
           setProgress(interviewManagerRef.current.getProgress());
           if (state.status === 'completed' && state.result) {
+            // インタビュー記録を保存
+            const duration = Date.now() - startTimeRef.current;
+            const record: InterviewRecord = {
+              id: `interview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              timestamp: Date.now(),
+              duration,
+              items: state.result,
+              messages: claudeClientRef.current.getConversationHistory(),
+              emotions: emotionsRef.current as any,
+            };
+
+            dataStorageRef.current.saveInterview(record).catch((err) => {
+              console.error('Failed to save interview record:', err);
+            });
+
             onComplete?.(state.result);
           }
         });
@@ -116,6 +141,30 @@ export const InterviewUI: React.FC<InterviewUIProps> = ({
 
       // 応答を表示
       setMessages((prev) => [...prev, { role: 'assistant', text: response }]);
+
+      // Phase 3: 応答テキストから感情を分析
+      const emotionScore = emotionAnalyzerRef.current.analyze(response);
+      console.log('Emotion detected:', emotionScore);
+
+      // 感情を記録
+      emotionsRef.current.push({
+        timestamp: Date.now(),
+        type: emotionScore.type,
+        score: emotionScore.score,
+      });
+
+      // 感情に基づいて表情を更新
+      expressionControllerRef.current.setExpressionFromEmotion(
+        emotionScore.type,
+        emotionScore.intensity
+      );
+
+      // 感情に基づいてモーション実行
+      if (emotionScore.type === 'positive') {
+        motionControllerRef.current.playMotion('nod', emotionScore.intensity);
+      } else if (emotionScore.type === 'negative') {
+        motionControllerRef.current.playMotion('think', emotionScore.intensity);
+      }
 
       // 応答を音声で再生
       await audioAnalyzerRef.current.synthesizeAndPlay(response);
