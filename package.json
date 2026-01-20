@@ -1,0 +1,31 @@
+{
+  "name": "ai-avatar-interviewer",
+  "version": "1.0.0",
+  "description": "Webブラウザ上で動作する、3Dアバターによる対話型ヒアリングアプリケーションです。 従来のフォーム入力や一問一答形式のチャットボットとは異なり、自然な会話のキャッチボールを通じて、あらかじめ設定された必要な情報をユーザーから聞き出すことを目的としています。",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:18632/git/kuniatsu/AI-Avatar-Interviewer"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pixiv/three-vrm": "^3.4.5",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
+    "@types/node": "^25.0.9",
+    "@types/react": "^19.2.8",
+    "next": "^16.1.4",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "three": "^0.182.0",
+    "typescript": "^5.9.3"
+  }
+}
