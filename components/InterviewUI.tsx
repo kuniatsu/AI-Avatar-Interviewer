@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAudioAnalyzer } from '../lib/audioAnalyzer';
 import { getLipSyncManager } from '../lib/lipSyncManager';
-import { getClaudeClient, type InterviewItem } from '../lib/claudeApiClient';
+import { getApiClient } from '../lib/api/apiClient';
+import type { InterviewItem } from '../lib/claudeApiClient';
 import { getInterviewManager } from '../lib/interviewManager';
 import { getEmotionAnalyzer } from '../lib/emotionAnalyzer';
 import { getExpressionController } from '../lib/expressionController';
@@ -30,7 +31,7 @@ export const InterviewUI: React.FC<InterviewUIProps> = ({
 
   const audioAnalyzerRef = useRef(getAudioAnalyzer());
   const lipSyncManagerRef = useRef(getLipSyncManager());
-  const claudeClientRef = useRef(getClaudeClient());
+  const apiClientRef = useRef(getApiClient());
   const interviewManagerRef = useRef(getInterviewManager());
   const emotionAnalyzerRef = useRef(getEmotionAnalyzer());
   const expressionControllerRef = useRef(getExpressionController());
@@ -47,8 +48,8 @@ export const InterviewUI: React.FC<InterviewUIProps> = ({
         // Audio Analyzer を初期化
         await audioAnalyzerRef.current.initialize();
 
-        // Claude Client を初期化
-        claudeClientRef.current.initialize(interviewItems);
+        // API Client を初期化（バックエンド使用）
+        // システムプロンプトはサーバーで構築されるため、ここでは設定不要
 
         // Interview Manager を初期化
         interviewManagerRef.current.initializeItems(interviewItems);
@@ -62,7 +63,7 @@ export const InterviewUI: React.FC<InterviewUIProps> = ({
               timestamp: Date.now(),
               duration,
               items: state.result,
-              messages: claudeClientRef.current.getConversationHistory(),
+              messages: apiClientRef.current.getConversationHistory(),
               emotions: emotionsRef.current as any,
             };
 
@@ -133,10 +134,12 @@ export const InterviewUI: React.FC<InterviewUIProps> = ({
       // ユーザーメッセージを表示
       setMessages((prev) => [...prev, { role: 'user', text: userText }]);
 
-      // Claude API で応答を生成
+      // バックエンド API で応答を生成
       setIsSpeaking(true);
-      const response = await claudeClientRef.current.processUserMessage(
-        userText
+      const response = await apiClientRef.current.processUserMessage(
+        userText,
+        undefined,
+        interviewItems
       );
 
       // 応答を表示
