@@ -14,6 +14,14 @@ export interface MorphTargets {
   neutral: number; // 閉じた状態
 }
 
+export interface FrequencyBands {
+  O: number; // 低周波 0-500 Hz (お行)
+  A: number; // 中低周波 500-1500 Hz (あ行)
+  E: number; // 中周波 1500-3000 Hz (え行)
+  I: number; // 中高周波 3000-5000 Hz (い行)
+  U: number; // 高周波 5000-8000 Hz (う行)
+}
+
 export class LipSyncManager {
   private model: THREE.Scene | null = null;
   private morphTargets: Map<string, number> = new Map();
@@ -57,6 +65,29 @@ export class LipSyncManager {
     // 基本的なリップシンク形状に更新
     this.setMorphWeight('A', mouthOpenness);
     this.setMorphWeight('neutral', Math.max(0, 1 - mouthOpenness));
+
+    this.applyMorphWeights();
+  }
+
+  /**
+   * 周波数帯に基づいて口の形状を更新
+   * @param bands 周波数帯のエネルギー値
+   */
+  updateFromFrequencyBands(bands: FrequencyBands): void {
+    // 音量（全周波数帯の合計）を計算
+    const totalEnergy = (bands.O + bands.A + bands.E + bands.I + bands.U) / 5;
+
+    // 各周波数帯に対応する音韻のウェイトを設定
+    // エネルギーが高いほどその音韻の口形が活性化
+    this.setMorphWeight('O', Math.max(0, bands.O - 0.1));
+    this.setMorphWeight('A', Math.max(0, bands.A - 0.1));
+    this.setMorphWeight('E', Math.max(0, bands.E - 0.1));
+    this.setMorphWeight('I', Math.max(0, bands.I - 0.1));
+    this.setMorphWeight('U', Math.max(0, bands.U - 0.1));
+
+    // 総エネルギーが低い場合は neutral を増加
+    const neutralWeight = Math.max(0, 1 - totalEnergy * 2);
+    this.setMorphWeight('neutral', neutralWeight);
 
     this.applyMorphWeights();
   }

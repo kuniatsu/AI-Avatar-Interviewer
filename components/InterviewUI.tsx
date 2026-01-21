@@ -190,11 +190,16 @@ export const InterviewUI: React.FC<InterviewUIProps> = ({
       if (recognitionRef.current) {
         recognitionRef.current.start();
       }
-      // マイク音量解析開始
-      await audioAnalyzerRef.current.startListening((volume) => {
-        setVolume(volume);
-        lipSyncManagerRef.current.updateFromVolume(volume);
-      });
+      // マイク音声解析開始（音量と周波数帯）
+      await audioAnalyzerRef.current.startListening(
+        (volume) => {
+          setVolume(volume);
+        },
+        (bands) => {
+          // 周波数帯に基づいてリップシンク更新
+          lipSyncManagerRef.current.updateFromFrequencyBands(bands);
+        }
+      );
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Failed to start listening';
       setError(errorMsg);

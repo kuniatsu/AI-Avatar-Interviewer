@@ -1,6 +1,7 @@
 /**
  * Audio Manager - Web Audio API の音声入力・出力・解析
  * リアルタイム音量レベル解析でリップシンクに対応
+ * FFT による周波数解析で音韻ベースのリップシンク対応
  */
 
 export interface AudioAnalyzerState {
@@ -10,6 +11,14 @@ export interface AudioAnalyzerState {
   frequency: number[];
 }
 
+export interface FrequencyBands {
+  O: number; // 低周波 0-500 Hz (お行)
+  A: number; // 中低周波 500-1500 Hz (あ行)
+  E: number; // 中周波 1500-3000 Hz (え行)
+  I: number; // 中高周波 3000-5000 Hz (い行)
+  U: number; // 高周波 5000-8000 Hz (う行)
+}
+
 export class AudioAnalyzer {
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -17,7 +26,9 @@ export class AudioAnalyzer {
   private animationFrameId: number | null = null;
   private dataArray: Uint8Array | null = null;
   private onVolumeChange: ((volume: number) => void) | null = null;
+  private onFrequencyChange: ((bands: FrequencyBands) => void) | null = null;
   private isListening: boolean = false;
+  private sampleRate: number = 44100; // デフォルトサンプルレート
 
   async initialize(): Promise<void> {
     if (this.audioContext) return;
@@ -29,16 +40,19 @@ export class AudioAnalyzer {
 
     // Analyser ノードの作成
     if (this.audioContext) {
+      this.sampleRate = this.audioContext.sampleRate;
       this.analyser = this.audioContext.createAnalyser();
       if (this.analyser) {
-        this.analyser.fftSize = 256;
+        // 2048 を使用して周波数解析精度を向上（最大 ~10Hz の周波数解析精度）
+        this.analyser.fftSize = 2048;
         this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
       }
     }
   }
 
   async startListening(
-    onVolumeChange: (volume: number) => void
+    onVolumeChange?: (volume: number) => void,
+    onFrequencyChange?: (bands: FrequencyBands) => void
   ): Promise<void> {
     await this.initialize();
 
@@ -59,8 +73,9 @@ export class AudioAnalyzer {
       }
 
       this.isListening = true;
-      this.onVolumeChange = onVolumeChange;
-      this.analyzeVolume();
+      this.onVolumeChange = onVolumeChange || null;
+      this.onFrequencyChange = onFrequencyChange || null;
+      this.analyzeAudio();
     } catch (error) {
       console.error('Failed to access microphone:', error);
       throw error;
@@ -79,7 +94,62 @@ export class AudioAnalyzer {
     }
   }
 
-  private analyzeVolume(): void {
+  /**
+   * 周波数帯のインデックス範囲を計算
+   */
+  private getFrequencyBinRange(
+    minFreq: number,
+    maxFreq: number
+  ): { start: number; end: number } {
+    if (!this.analyser) {
+      return { start: 0, end: 0 };
+    }
+    const nyquist = this.sampleRate / 2;
+    const start = Math.floor((minFreq / nyquist) * this.analyser.frequencyBinCount);
+    const end = Math.floor((maxFreq / nyquist) * this.analyser.frequencyBinCount);
+    return { start, end };
+  }
+
+  /**
+   * 周波数帯域の平均エネルギーを計算
+   */
+  private getFrequencyBandEnergy(
+    minFreq: number,
+    maxFreq: number
+  ): number {
+    if (!this.analyser || !this.dataArray) {
+      return 0;
+    }
+
+    const { start, end } = this.getFrequencyBinRange(minFreq, maxFreq);
+    let sum = 0;
+    let count = 0;
+
+    for (let i = start; i < end && i < this.dataArray.length; i++) {
+      sum += this.dataArray[i];
+      count++;
+    }
+
+    return count > 0 ? sum / count / 255 : 0;
+  }
+
+  /**
+   * 周波数帯ごとのエネルギーを計算（音韻ベース）
+   */
+  private extractFrequencyBands(): FrequencyBands {
+    return {
+      O: this.getFrequencyBandEnergy(0, 500),
+      A: this.getFrequencyBandEnergy(500, 1500),
+      E: this.getFrequencyBandEnergy(1500, 3000),
+      I: this.getFrequencyBandEnergy(3000, 5000),
+      U: this.getFrequencyBandEnergy(5000, 8000),
+    };
+  }
+
+  /**
+   * 音声データを解析（音量と周波数）
+   */
+  private analyzeAudio(): void {
     if (!this.isListening || !this.analyser || !this.dataArray) return;
 
     // 周波数データを取得
@@ -97,8 +167,14 @@ export class AudioAnalyzer {
       this.onVolumeChange(average);
     }
 
+    // 周波数帯域を抽出してコールバック
+    if (this.onFrequencyChange) {
+      const bands = this.extractFrequencyBands();
+      this.onFrequencyChange(bands);
+    }
+
     // 次のフレームをスケジュール
-    this.animationFrameId = requestAnimationFrame(() => this.analyzeVolume());
+    this.animationFrameId = requestAnimationFrame(() => this.analyzeAudio());
   }
 
   async playAudio(audioUrl: string): Promise<void> {
